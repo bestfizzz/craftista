@@ -13,7 +13,7 @@ pipeline {
                 sh '''
                 echo "User: $(whoami)"
                 docker --version || echo "Docker not found"
-                docker compose --version || docker compose version || echo "Compose not found"
+                docker compose version || docker compose version || echo "Compose not found"
                 '''
             }
         }

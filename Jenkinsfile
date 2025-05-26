@@ -12,6 +12,7 @@ pipeline {
             steps {
                 echo "🔧 Installing Docker Compose (if not already installed)..."
                 sh '''
+                ls
                 whoami
                 docker --version
                 docker compose version || echo "docker compose not found"

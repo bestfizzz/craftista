@@ -1,37 +1,50 @@
 pipeline {
-    agent { 
+    agent {
         node {
-            label 'docker-agent-alpine'
+            label 'docker-agent-alpine'  // Or any label you use
         }
     }
     triggers {
-        cron('* * * * *')  // Every minute (consider H/5 for better spacing)
+        cron('* * * * *')  // Every minute
     }
     stages {
-        stage('Check Environment') {
+        stage('Build') {
             steps {
+                echo "🔧 Installing Docker Compose (if not already installed)..."
                 sh '''
-                echo "User: $(whoami)"
-                docker --version || echo "Docker not found"
-                docker compose version || docker compose version || echo "Compose not found"
+                set -e
+
+                # Check if Docker Compose v2 plugin exists
+                if ! docker compose version > /dev/null 2>&1; then
+                    echo "Docker Compose v2 not found. Installing..."
+
+                    PLUGIN_DIR="/usr/libexec/docker/cli-plugins"
+                    mkdir -p "$PLUGIN_DIR"
+
+                    curl -SL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 \
+                        -o "$PLUGIN_DIR/docker-compose"
+                    chmod +x "$PLUGIN_DIR/docker-compose"
+
+                    echo "✅ Docker Compose installed."
+                else
+                    echo "✅ Docker Compose already installed."
+                fi
+
+                docker compose version
                 '''
             }
         }
-        stage('Build') {
-            steps {
-                echo "Building.."
-                sh 'echo "doing build stuff.."'
-            }
-        }
+
         stage('Test') {
             steps {
-                echo "Testing.."
+                echo "🧪 Testing.."
                 sh 'echo "doing test stuff.."'
             }
         }
+
         stage('Deliver') {
             steps {
-                echo 'Deliver....'
+                echo '📦 Delivering...'
                 sh '''
                 docker compose down || true
                 docker compose up -d --build

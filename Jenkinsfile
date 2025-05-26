@@ -33,9 +33,8 @@ pipeline {
             steps {
                 echo 'Deliver....'
                 sh '''
-                COMPOSE_CMD=$(command -v docker compose || echo "docker compose")
-                $COMPOSE_CMD down || true
-                $COMPOSE_CMD up -d --build
+                docker compose down || true
+                docker compose up -d --build
                 '''
             }
         }

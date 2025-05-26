@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Frontend Service
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"  # Exposes port 3000 for the Frontend app
+    networks:
+      - craftista-net
+    depends_on:
+      - recommendation
+      - catalogue
+      - voting  # Added voting service to frontend dependencies
+
+  # Catalogue Service
+  catalogue:
+    build: ./catalogue
+    ports:
+      - "5000:5000"
+    networks:
+      - craftista-net
+
+  # Recommendation Service
+  recommendation:
+    build: ./recommendation
+    ports:
+      - "8080:8080"
+    networks:
+      - craftista-net
+
+  # Voting Service
+  voting:
+    build: ./voting  # Make sure you have the Dockerfile in the ./voting directory
+    ports:
+      - "8081:8080"  # Exposing voting service on port 8081
+    networks:
+      - craftista-net
+    depends_on:
+      - recommendation  # Voting depends on the recommendation service
+
+networks:
+  craftista-net:
+    driver: bridge

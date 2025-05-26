@@ -13,7 +13,7 @@ pipeline {
                 sh '''
                 echo "User: $(whoami)"
                 docker --version || echo "Docker not found"
-                docker-compose --version || docker compose version || echo "Compose not found"
+                docker compose --version || docker compose version || echo "Compose not found"
                 '''
             }
         }
@@ -33,7 +33,7 @@ pipeline {
             steps {
                 echo 'Deliver....'
                 sh '''
-                COMPOSE_CMD=$(command -v docker-compose || echo "docker compose")
+                COMPOSE_CMD=$(command -v docker compose || echo "docker compose")
                 $COMPOSE_CMD down || true
                 $COMPOSE_CMD up -d --build
                 '''

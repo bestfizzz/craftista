@@ -1,12 +1,5 @@
 pipeline {
-    agent {
-        node {
-            label 'built-in'  // Or any label you use
-        }
-    }
-    triggers {
-        cron('* * * * *')  // Every minute
-    }
+    agent { dockerfile true }
     stages {
         stage('Build') {
             steps {

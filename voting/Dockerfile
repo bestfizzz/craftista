@@ -6,8 +6,8 @@ WORKDIR /app
 # Copy source code
 COPY . .
 
-# Build the app, skip tests
-RUN mvn package -DskipTests
+# Build the app, with tests
+RUN mvn package 
 
 # Stage 2: Run the app
 FROM eclipse-temurin:17-jdk

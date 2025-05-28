@@ -25,7 +25,8 @@ pipeline {
                 echo '📦 Delivering...'
                 sh '''
                 docker compose down || true
-                docker compose up -d --build
+                // docker-compose-hub to pull image docker-compose from git repo
+                docker compose -f docker-compose-hub.yml up -d --build
                 '''
             }
         }

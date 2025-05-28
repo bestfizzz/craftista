@@ -23,9 +23,9 @@ pipeline {
         stage('Deliver') {
             steps {
                 echo '📦 Delivering...'
+                // docker-compose-hub to pull image docker-compose from git repo
                 sh '''
                 docker compose down || true
-                // docker-compose-hub to pull image docker-compose from git repo
                 docker compose -f docker-compose-hub.yml up -d --build
                 '''
             }

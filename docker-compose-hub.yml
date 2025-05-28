@@ -1,1 +1,45 @@
+version: '3.8'
+
+services:
+  # Frontend Service
+  frontend:
+    image: bestfizzz/craftista-frontend:latest
+    ports:
+      - "3000:3000"
+    networks:
+      - craftista-net
+    depends_on:
+      - recommendation
+      - catalogue
+      - voting
+
+  # Catalogue Service
+  catalogue:
+    image: bestfizzz/craftista-catalogue:latest
+    ports:
+      - "5000:5000"
+    networks:
+      - craftista-net
+
+  # Recommendation Service
+  recommendation:
+    image: bestfizzz/craftista-recommendation:latest
+    ports:
+      - "8080:8080"
+    networks:
+      - craftista-net
+
+  # Voting Service
+  voting:
+    image: bestfizzz/craftista-voting:latest
+    ports:
+      - "8081:8080"
+    networks:
+      - craftista-net
+    depends_on:
+      - recommendation
+
+networks:
+  craftista-net:
+    driver: bridge
 

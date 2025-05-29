@@ -1,24 +1,33 @@
-# === Stage 1: Build and test the app ===
-FROM maven:3.9.1-eclipse-temurin-17 AS builder
+# === Stage 1: Restore dependencies ===
+FROM maven:3.9.1-eclipse-temurin-17 AS dependencies
 
 WORKDIR /app
 
-# Copy pom.xml and dependencies first to leverage Docker layer caching
+# Copy pom.xml and download dependencies
 COPY pom.xml ./
 RUN mvn dependency:go-offline
 
-# Copy source code
+# === Stage 2: Test phase ===
+FROM dependencies AS test
+
 COPY src ./src
 
-# Build and run tests
-RUN mvn clean package
+# Run tests only
+RUN mvn test
 
-# === Stage 2: Final image to run the app ===
+# === Stage 3: Build the app ===
+FROM dependencies AS builder
+
+COPY src ./src
+
+# Build without tests (they ran in test stage)
+RUN mvn clean package -DskipTests
+
+# === Stage 4: Final runtime image ===
 FROM eclipse-temurin:17-jdk
 
 WORKDIR /app
 
-# Copy the compiled jar from the builder stage
 COPY --from=builder /app/target/*.jar app.jar
 
 EXPOSE 8080

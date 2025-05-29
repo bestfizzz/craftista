@@ -70,7 +70,7 @@ pipeline {
             steps {
                 echo "🧪 Running tests for ${PROJECT_NAME}-${SERVICE_NAME}:${BUILD_ID}"
                 sh """
-                    docker build --target=test --rm -t ${IMAGE_TAG} service-workdir/${SERVICE_NAME}
+                    docker build --target=test --rm -t ${IMAGE_TAG}-test service-workdir/${SERVICE_NAME}
                 """
             }
         }

@@ -13,10 +13,10 @@ RUN go test -v ./...
 # === Stage 3: Build binary ===
 FROM deps AS build
 COPY . .
-RUN CGO_ENABLED=0 go build -o app
+RUN go build -o app
 
 # === Stage 4: Final image ===
-FROM alpine:latest
+FROM build AS final
 WORKDIR /app
 
 COPY --from=build /app/app .

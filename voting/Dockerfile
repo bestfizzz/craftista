@@ -24,7 +24,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # === Stage 4: Final runtime image ===
-FROM builder AS final
+FROM maven:3.9.1-eclipse-temurin-17
 
 WORKDIR /app
 

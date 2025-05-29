@@ -1,0 +1,121 @@
+pipeline {
+    agent any
+
+    environment {
+        PROJECT_NAME = 'craftista'
+        SERVICE_NAME = 'catalogue'
+        BRANCH = 'main'
+        INGRESS_PORT = '5000'
+        EGRESS_PORT = '5000'
+        DOCKERHUB_CREDENTIALS_ID = 'minh-public-docker'
+        DOCKER_NETWORK = 'craftista-net'
+    }
+
+    stages {
+        stage('Sparse Clone Service') {
+            steps {
+                script {
+                    sh """
+                    rm -rf service-workdir
+                    mkdir service-workdir
+                    cd service-workdir
+                    git init
+                    git remote add origin https://github.com/bestfizzz/craftista.git
+                    git config core.sparseCheckout true
+                    echo ${SERVICE_NAME}/ >> .git/info/sparse-checkout
+                    git pull origin ${BRANCH}
+                    """
+                }
+            }
+        }
+
+        stage('List Cloned Content') {
+            steps {
+                script {
+                    sh """
+                    echo "Listing root folder:"
+                    ls -l
+
+                    echo "Listing service-workdir folder:"
+                    ls -l service-workdir
+
+                    echo "Listing ${SERVICE_NAME} folder inside service-workdir:"
+                    ls -l service-workdir/${SERVICE_NAME}
+                    """
+                }
+            }
+        }
+
+        stage('Build Image') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS_ID,
+                                                  usernameVariable: 'DOCKER_USER',
+                                                  passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        def IMAGE_BASE = "${DOCKER_USER}/${PROJECT_NAME}-${SERVICE_NAME}"
+                        env.IMAGE_TAG = "${IMAGE_BASE}:${env.BUILD_ID}"
+                        env.IMAGE_LATEST = "${IMAGE_BASE}:latest"
+
+                        echo "🔨 Building Docker image: ${env.IMAGE_TAG}"
+                        sh """
+                        docker build -t ${env.IMAGE_TAG} service-workdir/${SERVICE_NAME}
+                        docker tag ${env.IMAGE_TAG} ${env.IMAGE_LATEST}
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo "🧪 Running tests for ${PROJECT_NAME}-${SERVICE_NAME}:${BUILD_ID}"
+                sh """
+                docker run --rm ${IMAGE_TAG} python -m unittest test_app.py || exit 1
+                """
+            }
+        }
+
+        stage('Create Network') {
+            steps {
+                echo "🔧 Ensuring Docker network '${DOCKER_NETWORK}' exists"
+                sh """
+                docker network inspect ${DOCKER_NETWORK} >/dev/null 2>&1 || docker network create ${DOCKER_NETWORK} || true
+                """
+            }
+        }
+
+        stage('Deploy Service') {
+            steps {
+                echo "🛑 Stopping existing container if any"
+                sh """
+                docker stop ${SERVICE_NAME} || true
+                docker rm ${SERVICE_NAME} || true
+                """
+
+                echo "🚀 Deploying '${IMAGE_TAG}'"
+                sh """
+                docker run -d --name ${SERVICE_NAME} --network ${DOCKER_NETWORK} -p ${INGRESS_PORT}:${EGRESS_PORT} ${IMAGE_TAG}
+                """
+            }
+        }
+
+        stage('Push Image to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS_ID,
+                                                  usernameVariable: 'DOCKER_USER',
+                                                  passwordVariable: 'DOCKER_PASS')]) {
+                    script {
+                        sh """
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                        docker push ${IMAGE_TAG}
+                        docker push ${IMAGE_LATEST}
+
+                        docker logout
+                        """
+                    }
+                }
+            }
+        }
+    }
+}

@@ -16,7 +16,7 @@ COPY . .
 RUN go build -o app
 
 # === Stage 4: Final image ===
-FROM build AS final
+FROM golang:1.20-alpine
 WORKDIR /app
 
 COPY --from=build /app/app .

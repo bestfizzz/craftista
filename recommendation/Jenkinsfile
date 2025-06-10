@@ -9,6 +9,7 @@ pipeline {
         EGRESS_PORT = '8080'
         DOCKERHUB_CREDENTIALS_ID = 'minh-public-docker'
         DOCKER_NETWORK = 'craftista-net'
+        REPLICAS = '2'
     }
 
     stages {
@@ -75,48 +76,91 @@ pipeline {
             }
         }
         
-        stage('Create Network') {
-            steps {
-                echo "🔧 Ensuring Docker network '${DOCKER_NETWORK}' exists"
-                sh """
-                docker network inspect ${DOCKER_NETWORK} >/dev/null 2>&1 || docker network create ${DOCKER_NETWORK} || true
-                """
-            }
+    // OLD DEPLOY ON DOCKER CODE
+    // stage('Create Network') {
+    //   steps {
+    //     echo "🔧 Ensuring Docker network '${DOCKER_NETWORK}' exists"
+    //     sh """
+    //     docker network inspect ${DOCKER_NETWORK} >/dev/null 2>&1 || \
+    //     docker network create ${DOCKER_NETWORK}
+    //     """
+    //   }
+    // }
+// 
+// 
+    // stage('Deploy Service') {
+    //   steps {
+    //     echo "🛑 Stopping existing container if any"
+    //     sh """
+    //     docker stop ${SERVICE_NAME} || true
+    //     docker rm ${SERVICE_NAME} || true
+    //     """
+    //     echo "🚀 Deploying '${IMAGE_TAG}'"
+    //     sh """
+    //     docker run -d --name ${SERVICE_NAME} \
+    //       --network ${DOCKER_NETWORK} \
+    //       -p ${INGRESS_PORT}:${EGRESS_PORT} ${IMAGE_TAG}
+    //     """
+    //   }
+    // }
+
+    stage('Push Image to Docker Hub') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS_ID,
+                                          usernameVariable: 'DOCKER_USER',
+                                          passwordVariable: 'DOCKER_PASS')]) {
+          sh """
+          echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+          docker push ${IMAGE_TAG}
+          docker push ${IMAGE_LATEST}
+          """
         }
-
-        stage('Deploy Service') {
-            steps {
-                echo "🛑 Stopping existing container if any"
-                sh """
-                docker stop ${SERVICE_NAME} || true
-                docker rm ${SERVICE_NAME} || true
-                """
-
-                echo "🚀 Deploying '${IMAGE_TAG}'"
-                sh """
-                docker run -d --name ${SERVICE_NAME} --network ${DOCKER_NETWORK} -p ${INGRESS_PORT}:${EGRESS_PORT} ${IMAGE_TAG}
-                """
-            }
-        }
-
-        stage('Push Image to Docker Hub') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: DOCKERHUB_CREDENTIALS_ID,
-                                                  usernameVariable: 'DOCKER_USER',
-                                                  passwordVariable: 'DOCKER_PASS')]) {
-                    script {
-                        sh """
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-
-                        docker push ${IMAGE_TAG}
-                        docker push ${IMAGE_LATEST}
-
-                        """
-                    }
-                }
-            }
-        }
+      }
     }
+
+    stage('Deploy on Kubernetes') {
+      agent { label 'k8s-kubectl-ci-agent' }
+      steps {
+        script {
+          writeFile file: 'deployment.yaml', text: """\
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${SERVICE_NAME}
+spec:
+  replicas: ${REPLICAS.toInteger()}
+  selector:
+    matchLabels:
+      app: ${SERVICE_NAME}
+  template:
+    metadata:
+      labels:
+        app: ${SERVICE_NAME}
+    spec:
+      containers:
+      - name: ${SERVICE_NAME}
+        image: ${IMAGE_TAG}
+        ports:
+        - containerPort: ${EGRESS_PORT}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${SERVICE_NAME}
+spec:
+  type: LoadBalancer
+  selector:
+    app: ${SERVICE_NAME}
+  ports:
+  - port: ${INGRESS_PORT}
+    targetPort: ${EGRESS_PORT}
+"""
+          sh 'kubectl apply -f deployment.yaml && rm deployment.yaml'
+        }
+      }
+    }
+  }
+  
     post {
         always {
             echo 'Logging out from Docker Hub'

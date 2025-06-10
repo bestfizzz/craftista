@@ -35,6 +35,10 @@ I created DockerFile for each services. For services using go or maven, the fina
 ## 2.  Build CI Pipeline
 I used Jenkins (in container) with dind(Docker-in-Docker), I also simulated docker cloud connection using socat. I created pipelines for each services including: build image, testing, deploy using docker and upload to docker hub with configured credential.
 ## 3.  Deploy to Kubernetes
+Minikube was installed and was running using docker drive, the goal was to deploy the applications on the cluster (1node) and do automatically from jenkins pipeline. Since Jenkins is already installed, I decided to run kubernetes as Jenkins agents using the K8s cloud plugin. I filled the plugin with cluster configuration and created a service account with access permission in jenkins namespace. Jenkins managed to create agent pods, however cannot complete jobs since  agents cannot reach back to the jenkins master. Hence, I created a service exposing Jenkins master ip to the pods. It can be by either creating an endpoint pointing to Jenkins master IP and expose it as a service or taking advantage of docker network DNS and create a service using external name, I prefer the latter.
+
+After configuring the agents, I created deployment yaml files for each service and apply them to the pipeline. 
+
 
 
 
